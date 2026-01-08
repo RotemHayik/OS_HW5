@@ -212,15 +212,15 @@ void* dequeue(void)
 
 
 
-
-
-
 //------------------------------------------------------------------------------------------
 
 
-// Rreturns the total count of items that have been both enqueued and subsequently dequeued. 
+// Returns the total count of items that have been both enqueued and subsequently dequeued. 
 // should not block due to concurrent operations, yet must return accurate results if no concurrent
 // operations are occurring.
 // must be thread-safe.
-size_t visited(void);
-// atomic variable to keep track of visited count
+size_t visited(void)
+{
+    // atomic variable to keep track of visited count
+    return atomic_load(&tasks_FIFO.visited_count);
+}
