@@ -1,4 +1,6 @@
-# include <thread.h>
+#include <threads.h>
+#include <stdatomic.h>
+#include <stdlib.h>
 
 
 //////////////////////////// STRUCTS AND GLOBALS ////////////////////////////
@@ -12,6 +14,7 @@ struct Node {
 struct Thread_Node {
     cnd_t cond_var;
     void* assigned_task;
+    int has_task; // flag to deal with null tasks
     struct Thread_Node* next;
 };
 
@@ -47,7 +50,9 @@ void initQueue(void)
     tasks_FIFO.tail_thread = NULL;
 
 
-    atomic_init(&tasks_FIFO.visited_count, 0); /// size_t is not a primitive type, initialize visited count to 0
+    // we learned atomic_int so I read about atomic_size_t online
+    atomic_init(&tasks_FIFO.visited_count, 0);
+
     mtx_init(&tasks_FIFO.mutex, mtx_plain);
 }
 
@@ -91,6 +96,7 @@ void enqueue(void* task)
         // get the first waiting thread
         struct Thread_Node* first_waiting_thread = tasks_FIFO.head_thread;
         first_waiting_thread->assigned_task = task;
+        first_waiting_thread->has_task = 1;
 
         // remove the waiting thread from the waiting threads queue
         tasks_FIFO.head_thread = first_waiting_thread->next;
@@ -163,6 +169,7 @@ void* dequeue(void)
         free(first_task);
 
         // increment visited count
+        // we learned atomic_int so I read about atomic_size_t online
         atomic_fetch_add(&tasks_FIFO.visited_count, 1);
 
        
@@ -175,6 +182,7 @@ void* dequeue(void)
         // create a new thread node for the waiting thread
         struct Thread_Node* new_thread = malloc (sizeof (struct Thread_Node));
         new_thread->assigned_task = NULL;
+        new_thread->has_task = 0;
         new_thread->next = NULL;
         cnd_init(&new_thread->cond_var);
 
@@ -189,7 +197,7 @@ void* dequeue(void)
         }
 
         // wait for a task to be assigned
-        while (new_thread->assigned_task == NULL) 
+        while (new_thread->has_task == 0) 
         {
             cnd_wait(&new_thread->cond_var, &tasks_FIFO.mutex);
         }
@@ -202,8 +210,8 @@ void* dequeue(void)
         free(new_thread);
 
         // increment visited count
-        atomic_fetch_add(&tasks_FIFO.visited_count, 1);
-        
+        // we learned atomic_int so I read about atomic_size_t online
+        atomic_fetch_add(&tasks_FIFO.visited_count, 1);        
     }
 
     mtx_unlock(&tasks_FIFO.mutex);
@@ -222,5 +230,6 @@ void* dequeue(void)
 size_t visited(void)
 {
     // atomic variable to keep track of visited count
+    // we learned atomic_int so I read about atomic_size_t online
     return atomic_load(&tasks_FIFO.visited_count);
 }
